@@ -1,0 +1,439 @@
+unit uLottoTest;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, ExtCtrls,Math, DB, ZAbstractRODataset,
+  ZAbstractDataset, ZDataset, Gauges;
+
+type
+  TfmLottoTest = class(TForm)
+    Panel1: TPanel;
+    btn_Extract: TButton;
+    btn_Close: TButton;
+    TempQuery: TZQuery;
+    Label1: TLabel;
+    cmb_FromSeq: TComboBox;
+    cmb_ToSeq: TComboBox;
+    Gauge1: TGauge;
+    Panel2: TPanel;
+    Memo1: TMemo;
+    Panel3: TPanel;
+    Memo2: TMemo;
+    Panel4: TPanel;
+    Memo3: TMemo;
+    procedure btn_CloseClick(Sender: TObject);
+    procedure btn_stopClick(Sender: TObject);
+    procedure btn_ExtractClick(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+  private
+    { Private declarations }
+    L_bStop : Boolean;
+    L_nCount : int64;
+    Win45Lotto : TStringList;
+    Test45Lotto : TStringList;
+    procedure LoadSeq(cmb_Box:TComboBox;aFront:Boolean);
+    function ExtractLotto(aSeq:integer) : Boolean;
+    function CheckLottoWinNumber(aLottoNum:string;var aSeq:string):Boolean;
+
+    function DeleteLottoTest:Boolean;
+    function GetLastLottoSeq:integer;
+    function InsertIntoLottoTest(aSeq:integer) : Boolean;
+    function UpdateLottotestNumber(aSeq,aNumber,aType:string):Boolean;
+
+    function GetWin45Lotto(aFromSeq,aToSeq:string):Boolean;
+    function GetTest45Lotto(aFromSeq,aToSeq:string):Boolean;
+    function GetLastLotto:string;
+
+  public
+    { Public declarations }
+  end;
+
+var
+  fmLottoTest: TfmLottoTest;
+
+implementation
+uses
+  uLomosUtil,
+  uDataModule;
+{$R *.dfm}
+
+procedure TfmLottoTest.btn_CloseClick(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TfmLottoTest.btn_stopClick(Sender: TObject);
+begin
+  L_bStop := True;
+end;
+
+procedure TfmLottoTest.btn_ExtractClick(Sender: TObject);
+var
+  stSeq : string;
+  bResult : Boolean;
+  nLastSeq : integer;
+  i : integer;
+  stWinLotto : string;
+  stTestLotto : string;
+  stLastLotto : string;
+begin
+
+  Try
+    btn_Extract.Enabled := False;
+    Gauge1.Visible := True;
+    Gauge1.Progress := 1;
+    DeleteLottoTest;
+    L_nCount := 1;
+    nLastSeq := GetLastLottoSeq;
+    Gauge1.MaxValue := nLastSeq + 1;
+    for i := 1 to nLastSeq + 1 do
+    begin
+      ExtractLotto(i);
+      Gauge1.Progress := i;
+    end;
+    GetWin45Lotto(cmb_FromSeq.Text,cmb_ToSeq.Text);
+    GetTest45Lotto(cmb_FromSeq.Text,cmb_ToSeq.Text);
+    stWinLotto := '';
+    stTestLotto := '';
+    for i := 0 to Win45Lotto.Count - 1 do
+    begin
+      if stWinLotto <> '' then stWinLotto := stWinLotto + ',';
+      stWinLotto := stWinLotto + Win45Lotto.Strings[i];
+    end;
+    for i := 0 to Test45Lotto.Count - 1 do
+    begin
+      if stTestLotto <> '' then stTestLotto := stTestLotto + ',';
+      stTestLotto := stTestLotto + Test45Lotto.Strings[i];
+    end;
+
+    stLastLotto := GetLastLotto;
+    Memo1.Lines.Text := stWinLotto;
+    Memo2.Lines.Text := stTestLotto;
+    Memo3.Lines.Text := stLastLotto;
+
+  Finally
+    btn_Extract.Enabled := True;
+    Gauge1.Visible := False;
+  end;
+end;
+
+function TfmLottoTest.ExtractLotto(aSeq:integer): Boolean;
+var
+  i : integer;
+  Lotto45List : TStringList;
+  nRandom : integer;
+  stLottoNum : string;
+  stNum : string;
+begin
+  result := False;
+  InsertIntoLottoTest(aSeq);
+
+  Try
+    stLottoNum := '';
+    Lotto45List := TStringList.Create;
+    Lotto45List.Clear;
+    for i := 1 to 45 do
+    begin
+      Lotto45List.Add(FillZeroNumber(i,2));
+    end;
+    for i:= 1 to 6 do
+    begin
+      Randomize;
+      nRandom:= Random(Lotto45List.Count);
+      stNum := Lotto45List.Strings[nRandom];
+      Lotto45List.Delete(nRandom);
+      UpdateLottotestNumber(inttostr(aSeq),stNum,'1');
+   end;
+   result := True;
+  Finally
+    Lotto45List.Free;
+  End;
+
+end;
+
+function TfmLottoTest.CheckLottoWinNumber(aLottoNum: string;
+  var aSeq: string): Boolean;
+var
+  stSql : string;
+begin
+  result := False;
+  stSql := ' Select * from TB_NOTWINLOTTO where lottonumber = ''' + aLottoNum + ''' ';
+
+  with TempQuery do
+  begin
+    Close;
+    Sql.Text := stSql;
+    Try
+      Open;
+    Except
+      Exit;
+    End;
+    if recordCount < 1 then Exit;
+    aSeq := FindField('seq').asstring;
+    result := True;
+  end;
+
+end;
+
+function TfmLottoTest.DeleteLottoTest: Boolean;
+var
+  stSql : string;
+begin
+  stSql := 'Delete from lottotest ';
+  result := dmDB.ProcessExecSQL(stSql);
+end;
+
+procedure TfmLottoTest.LoadSeq(cmb_Box: TComboBox; aFront: Boolean);
+var
+  stSql : string;
+begin
+  stSql := 'Select * from lotto ';
+  stSql := stSql + ' order by seq ';
+  cmb_Box.Clear;
+
+  with TempQuery do
+  begin
+    Close;
+    sql.Text := stSql;
+    Try
+      Open;
+    Except
+      Exit;
+    End;
+    While Not Eof do
+    begin
+      cmb_Box.Items.Add(FindField('seq').AsString);
+      Next;
+    end;
+  end;
+  if aFront then cmb_Box.ItemIndex := 0
+  else cmb_Box.ItemIndex := cmb_Box.Items.Count - 1;
+end;
+
+procedure TfmLottoTest.FormCreate(Sender: TObject);
+begin
+  Win45Lotto := TStringList.Create;
+  Test45Lotto := TStringList.Create;
+  LoadSeq(cmb_FromSeq,True);
+  LoadSeq(cmb_ToSeq,False);
+
+end;
+
+function TfmLottoTest.GetLastLottoSeq: integer;
+var
+  stSql : string;
+begin
+  result := 0;
+  stSql := 'Select Max(seq) as seq from lotto ';
+
+  with TempQuery do
+  begin
+    Close;
+    sql.Text := stSql;
+    Try
+      Open;
+    Except
+      Exit;
+    End;
+    if recordcount > 0 then result := FindField('seq').AsInteger;
+  end;
+
+end;
+
+function TfmLottoTest.InsertIntoLottoTest(aSeq: integer): Boolean;
+var
+  stSql : string;
+begin
+  result := False;
+  stSql := ' insert into lottotest(seq) values(' + inttostr(aSeq) + ')';
+
+  result := dmDB.ProcessExecSQL(stSql);
+
+end;
+
+function TfmLottoTest.UpdateLottotestNumber(aSeq, aNumber,
+  aType: string): Boolean;
+var
+  stSql : string;
+begin
+  if Not isdigit(aNumber) then Exit;
+  stSql := 'Update lottotest set NO' + FillZeroNumber(strtoint(aNumber),2) + ' = ' + aType ;
+  stSql := stSql + ' Where seq = ' + aSeq ;
+
+  result := dmDB.ProcessExecSQL(stSql);
+
+end;
+
+procedure TfmLottoTest.FormClose(Sender: TObject;
+  var Action: TCloseAction);
+begin
+  Win45Lotto.Free;
+  Test45Lotto.Free;
+
+end;
+
+function TfmLottoTest.GetWin45Lotto(aFromSeq, aToSeq: string): Boolean;
+var
+  stSql : string;
+  stField : string;
+  arrWinNumberCountList: Array [0..45] of integer;
+  i,j : integer;
+  nIndex : integer;
+begin
+  Win45Lotto.Clear;
+  stField := '';
+  for i := 1 to 45 do
+  begin
+    if stField <> '' then stField := stField + ',';
+    stField := stField + ' SUM( ';
+    stField := stField + ' CASE NO' + FillZeroNumber(i,2);
+    stField := stField + ' WHEN ''2'' THEN ''0'' ' ;
+    stField := stField + ' ELSE NO' + FillZeroNumber(i,2) + ' END ' ;
+    stField := stField + ' ) AS SUMNO' + FillZeroNumber(i,2);
+  end;
+  stSql := 'Select ' + stField + ' From lotto  ';
+  stSql := stSql + ' Where seq between ' + aFromSeq + ' and ' + aToSeq ;
+
+  with TempQuery do
+  begin
+    Close;
+    Sql.Text := stSql;
+    Try
+      Open;
+    Except
+      Exit;
+    End;
+
+    if recordcount < 1 then Exit;
+    for i := 1 to 45 do
+    begin
+      arrWinNumberCountList[i] := FindField('SUMNO' + FillZeroNumber(i,2)).asinteger;
+    end;
+
+    Win45Lotto.Add('01'); //01 번은 ADD 후 소트 하자... 카운트로..
+    for i := 2 to 45 do
+    begin
+      for j := 1 to i - 1 do
+      begin
+        if arrWinNumberCountList[j] <= arrWinNumberCountList[i] then
+        begin
+          //i 앞에 Insert 하자.
+          nIndex := Win45Lotto.IndexOf(FillZeroNumber(j,2));
+          if nIndex > -1 then Win45Lotto.Insert(nIndex,FillZeroNumber(i,2));
+          break;
+        end else
+        begin
+          if j = (i -1) then Win45Lotto.Add(FillZeroNumber(i,2));
+        end;
+      end;
+    end;
+
+  end;
+end;
+
+function TfmLottoTest.GetTest45Lotto(aFromSeq, aToSeq: string): Boolean;
+var
+  stSql : string;
+  stField : string;
+  arrWinNumberCountList: Array [0..45] of integer;
+  i,j : integer;
+  nIndex : integer;
+begin
+  Test45Lotto.Clear;
+  stField := '';
+  for i := 1 to 45 do
+  begin
+    if stField <> '' then stField := stField + ',';
+    stField := stField + ' SUM( ';
+    stField := stField + ' CASE NO' + FillZeroNumber(i,2);
+    stField := stField + ' WHEN ''2'' THEN ''0'' ' ;
+    stField := stField + ' ELSE NO' + FillZeroNumber(i,2) + ' END ' ;
+    stField := stField + ' ) AS SUMNO' + FillZeroNumber(i,2);
+  end;
+  stSql := 'Select ' + stField + ' From lottotest  ';
+  stSql := stSql + ' Where seq between ' + aFromSeq + ' and ' + aToSeq ;
+
+  with TempQuery do
+  begin
+    Close;
+    Sql.Text := stSql;
+    Try
+      Open;
+    Except
+      Exit;
+    End;
+
+    if recordcount < 1 then Exit;
+    for i := 1 to 45 do
+    begin
+      arrWinNumberCountList[i] := FindField('SUMNO' + FillZeroNumber(i,2)).asinteger;
+    end;
+
+    Test45Lotto.Add('01'); //01 번은 ADD 후 소트 하자... 카운트로..
+    for i := 2 to 45 do
+    begin
+      for j := 1 to i - 1 do
+      begin
+        if arrWinNumberCountList[j] <= arrWinNumberCountList[i] then
+        begin
+          //i 앞에 Insert 하자.
+          nIndex := Test45Lotto.IndexOf(FillZeroNumber(j,2));
+          if nIndex > -1 then Test45Lotto.Insert(nIndex,FillZeroNumber(i,2));
+          break;
+        end else
+        begin
+          if j = (i -1) then Test45Lotto.Add(FillZeroNumber(i,2));
+        end;
+      end;
+    end;
+
+  end;
+end;
+
+function TfmLottoTest.GetLastLotto: string;
+var
+  stSql : string;
+  i : integer;
+  stNum : string;
+  stNewNum : string;
+  nIndex : integer;
+begin
+  stSql := 'Select * From lottotest order by seq desc ';
+  with TempQuery do
+  begin
+    Close;
+    Sql.Text := stSql;
+    Try
+      Open;
+    Except
+      Exit;
+    End;
+
+    if recordcount < 1 then Exit;
+    First;
+    stNum := '';
+    stNewNum := '';
+    for i := 1 to 45 do
+    begin
+      if FindField('NO' + FillZeroNumber(i,2)).asinteger =  1 then
+      begin
+        if stNum <> '' then stNum := stNum + ',';
+        if stNewNum <> '' then stNewNum := stNewNum + ',';
+        stNum := stNum + FillZeroNumber(i,2);
+        nIndex := Win45Lotto.IndexOf(FillZeroNumber(i,2));
+        if nIndex > -1 then
+        begin
+          stNewNum := stNewNum + Test45Lotto.Strings[nIndex];
+        end;
+      end;
+    end;
+
+  end;
+
+  result := stNum + ' -> ' + stNewNum;
+end;
+
+end.

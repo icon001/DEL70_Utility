@@ -1,0 +1,434 @@
+unit uLottoWinList5;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, Buttons, DB, ZAbstractRODataset, ZAbstractDataset,
+  ZDataset, Grids, BaseGrid, AdvGrid, uSubForm, CommandArray, ExtCtrls,
+  Gauges;
+
+type
+  TfmLottoWinList5 = class(TfmASubForm)
+    GroupBox1: TGroupBox;
+    Label1: TLabel;
+    Label2: TLabel;
+    btn_Search: TSpeedButton;
+    btn_Close: TSpeedButton;
+    btn_Excel: TSpeedButton;
+    cmb_FromSeq: TComboBox;
+    cmb_ToSeq: TComboBox;
+    TempQuery: TZQuery;
+    SaveDialog1: TSaveDialog;
+    NotWinQuery1: TZQuery;
+    sg_LottoList: TAdvStringGrid;
+    Gauge1: TGauge;
+    cmb_Compareseq: TComboBox;
+    procedure btn_CloseClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormCreate(Sender: TObject);
+    procedure btn_SearchClick(Sender: TObject);
+    procedure btn_ExcelClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+  private
+    { Private declarations }
+    procedure LoadSeq(cmb_Box:TComboBox;aFront:Boolean);
+    procedure searchLottoWinList1(aFromSeq,aToSeq:string);
+    function GetNotWinLottoNum(aSeq,aDiff:integer;var aCount:integer):string;
+    function CheckNextLotto(aSeq:integer):Boolean;
+  private
+    procedure ListInitialize;
+    procedure SetList(aNo,aDiff:integer;aColor:TColor);
+    function GetLastLottoSeq:integer;
+
+    procedure CompareColor(aNo:integer);
+    procedure GetBasicInfo(aNo:integer;var aBasic:string;var aBasicRow:integer);
+    procedure CheckDiffNo(aNo,aRow:integer;aBasic:string);
+  public
+    { Public declarations }
+  end;
+
+var
+  fmLottoWinList5: TfmLottoWinList5;
+
+implementation
+
+uses
+  uDataModule,
+  uLomosUtil;
+    
+{$R *.dfm}
+
+procedure TfmLottoWinList5.btn_CloseClick(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TfmLottoWinList5.FormClose(Sender: TObject;
+  var Action: TCloseAction);
+begin
+  Action := caFree;
+end;
+
+procedure TfmLottoWinList5.LoadSeq(cmb_Box: TComboBox; aFront: Boolean);
+var
+  stSql : string;
+begin
+  stSql := 'Select * from lotto ';
+  stSql := stSql + ' order by seq ';
+  cmb_Box.Clear;
+
+  with TempQuery do
+  begin
+    Close;
+    sql.Text := stSql;
+    Try
+      Open;
+    Except
+      Exit;
+    End;
+    While Not Eof do
+    begin
+      cmb_Box.Items.Add(FindField('seq').AsString);
+      Next;
+    end;
+  end;
+  if aFront then cmb_Box.ItemIndex := 0
+  else cmb_Box.ItemIndex := cmb_Box.Items.Count - 1;
+end;
+
+procedure TfmLottoWinList5.FormCreate(Sender: TObject);
+begin
+  LoadSeq(cmb_FromSeq,True);
+  LoadSeq(cmb_ToSeq,False);
+  ListInitialize;
+end;
+
+procedure TfmLottoWinList5.btn_SearchClick(Sender: TObject);
+begin
+  searchLottoWinList1(cmb_FromSeq.Text,cmb_ToSeq.Text);
+end;
+
+procedure TfmLottoWinList5.searchLottoWinList1(aFromSeq, aToSeq: string);
+var
+  stSql : string;
+  i,j : integer;
+  nRow : integer;
+  nLastSeq : integer;
+  arrWinNumberseqList: Array [0..45] of integer; //최종 나온 회차 등록
+  arrWinNumberDiffList: Array [0..45] of string; //
+  nDiff : integer;
+  nDiffSeq : integer; //시작회차와 마지막회차의 구간
+  nAvr : integer;
+  nPer : integer;
+  nNextSeq : integer; //다음 회차
+begin
+  nDiffSeq := strtoint(aToSeq) - strtoint(aFromSeq);
+  ListInitialize;
+  for i := 0 to 45 do
+  begin
+    arrWinNumberseqList[i] := 0;
+    arrWinNumberDiffList[i] := '';
+  end;
+
+  stSql := ' select * from lotto ';
+  stSql := stSql + ' Where seq between ' + aFromSeq + ' and ' + aToSeq;
+  stSql := stSql + ' order by seq ';
+
+  with TempQuery do
+  begin
+    Close;
+    Sql.Text := stSql;
+    Try
+      Open;
+    Except
+      Exit;
+    End;
+    if recordcount < 1 then Exit;
+    Gauge1.Visible := True;
+    Gauge1.MaxValue := recordCount + 1;
+    Gauge1.Progress := 0;
+
+    While Not Eof do
+    begin
+      with sg_LottoList do
+      begin
+        nLastSeq := FindField('seq').AsInteger;
+        for i := 1 to 45 do
+        begin
+          if FindField('NO' + FillZeroNumber(i,2)).AsInteger = 1 then
+          begin
+            if arrWinNumberseqList[i] <> 0 then
+            begin
+              nDiff := nLastSeq - arrWinNumberseqList[i];
+              if arrWinNumberDiffList[i] <> '' then arrWinNumberDiffList[i] := arrWinNumberDiffList[i] + ',';
+              arrWinNumberDiffList[i] := arrWinNumberDiffList[i] + inttostr(nDiff);
+              SetList(i,nDiff,clWhite);
+            end;
+            arrWinNumberseqList[i] := nLastSeq;
+          end
+        end;
+      end;
+      Gauge1.Progress := Gauge1.Progress + 1;
+      Application.ProcessMessages;
+      Next;
+    end;
+    //nNextSeq := GetLastLottoSeq + 1;
+    nNextSeq := strtoint(aToSeq) + 1;
+
+    for i := 1 to 45 do
+    begin
+      if arrWinNumberseqList[i] <> 0 then
+      begin
+        nDiff := nNextSeq - arrWinNumberseqList[i];
+        SetList(i,nDiff,clMoneyGreen);
+      end;
+    end;
+
+    Gauge1.MaxValue := 45;
+    Gauge1.Progress := 0;
+    for i := 1 to 45 do
+    begin
+      CompareColor(i);
+      Gauge1.Progress := i;
+    end;
+    Gauge1.Visible := False;
+  end;
+
+end;
+
+procedure TfmLottoWinList5.btn_ExcelClick(Sender: TObject);
+var
+  stSaveFileName : string;
+begin
+  inherited;
+  SaveDialog1.DefaultExt:= 'CSV';
+  SaveDialog1.Filter := 'Text files (*.CSV)|*.CSV';
+  SaveDialog1.FileName := '당첨내역';
+  if SaveDialog1.Execute then
+  begin
+    stSaveFileName := SaveDialog1.FileName;
+    if stSaveFileName <> '' then
+    begin
+      sg_LottoList.SaveToCSV(stSaveFileName);
+      //showmessage('파일생성 완료');
+    end;
+  end;
+
+end;
+
+procedure TfmLottoWinList5.FormShow(Sender: TObject);
+begin
+  inherited;
+  //btn_SearchClick(self);
+end;
+
+function TfmLottoWinList5.GetNotWinLottoNum(aSeq, aDiff: integer;var aCount:integer): string;
+var
+  stResult :string;
+  arrLottoList: Array [0..45] of integer;
+  stSql : string;
+  i : integer;
+begin
+  stResult := '';
+  aCount := 0;
+  for i:= 0 to 45 do
+  begin
+    arrLottoList[i] := 0;
+  end;
+  stSql := 'select * from lotto where seq between ' + inttostr(aSeq - aDiff) + ' and ' + inttostr(aSeq - 1);
+
+  Try
+    with NotWinQuery1 do
+    begin
+      close;
+      Sql.Text := stSql;
+      Try
+        Open;
+      Except
+        Exit;
+      End;
+      if recordcount < 1 then Exit;
+      While not Eof do
+      begin
+        for i:=1 to 45 do
+        begin
+          if FindField('NO' + FillZeroNumber(i,2)).AsInteger = 1 then arrLottoList[i] := 1;
+        end;
+        Next;
+      end;
+      for i:= 1 to 45 do
+      begin
+        if arrLottoList[i] = 0 then
+        begin
+          if stResult <> '' then stResult := stResult + ',';
+          stResult := stResult + FillZeroNumber(i,2);
+          aCount := aCount + 1;
+        end;
+      end;
+    end;
+  Finally
+    result := stResult;
+  End;
+end;
+
+function TfmLottoWinList5.CheckNextLotto(aSeq: integer): Boolean;
+var
+  stSql : string;
+  i : integer;
+begin
+  result := False;
+  stSql := 'Select * from lotto where seq = ' + inttostr(aSeq);
+
+  with TempQuery do
+  begin
+    Close;
+    Sql.Text := stSql;
+    Try
+      Open;
+    Except
+      Exit;
+    End;
+    if recordcount < 1 then Exit;
+    First;
+    for i:=1 to 45 do
+    begin
+      if FindField('NO' + FillZeroNumber(i,2)).AsInteger = 1 then sg_LottoList.cells[24,i] := '1';
+    end;
+
+  end;
+
+
+end;
+
+procedure TfmLottoWinList5.ListInitialize;
+var
+  i : integer;
+begin
+  with sg_LottoList do
+  begin
+    Clear;
+    RowCount := 2;
+    cells[0,0] := '횟수';
+    for i := 1 to 45 do
+    begin
+      cells[i,0] := FillZeroNumber(i,2);
+    end;
+  end;
+end;
+
+procedure TfmLottoWinList5.SetList(aNo, aDiff: integer;aColor:TColor);
+var
+  i : integer;
+  bResult : Boolean;
+begin
+  bResult := False;
+  with sg_LottoList do
+  begin
+    for i := 1 to RowCount - 1 do
+    begin
+      cells[0,i] := inttostr(i);
+      if cells[aNo,i] = '' then
+      begin
+        cells[aNo,i] := inttostr(aDiff);
+        Colors[aNo,i] := aColor;
+        bResult := True;
+        break;
+      end;
+    end;
+    if Not bResult then
+    begin
+      RowCount := RowCount + 1;
+      cells[0,RowCount - 1] := inttostr(RowCount - 1);
+      cells[aNo,RowCount - 1] := inttostr(aDiff);
+      Colors[aNo,RowCount - 1] := aColor;
+    end;
+  end;
+
+end;
+
+function TfmLottoWinList5.GetLastLottoSeq: integer;
+var
+  stSql : string;
+begin
+  result := 0;
+  stSql := 'Select Max(seq) as seq from lotto ';
+
+  with TempQuery do
+  begin
+    Close;
+    sql.Text := stSql;
+    Try
+      Open;
+    Except
+      Exit;
+    End;
+    if recordcount > 0 then result := FindField('seq').AsInteger;
+  end;
+
+end;
+
+procedure TfmLottoWinList5.CompareColor(aNo: integer);
+var
+  i : integer;
+  stBasic : string;
+  nBasicRow : integer;
+begin
+  GetBasicInfo(aNo,stBasic,nBasicRow);
+  if nBasicRow - 1 < 2 then Exit;
+  for i := nBasicRow - 1 downto 1 do
+  begin
+    CheckDiffNo(aNo,i,stBasic);
+  end;
+
+end;
+
+procedure TfmLottoWinList5.GetBasicInfo(aNo: integer; var aBasic: string;
+  var aBasicRow: integer);
+var
+  i : integer;
+  nDiff : integer;
+begin
+  aBasic := '';
+  nDiff := strtoint(cmb_Compareseq.Text);
+  for i := sg_LottoList.RowCount - 1 downto 1 do
+  begin
+    if sg_LottoList.Cells[aNo,i] = '' then continue;
+    if nDiff = strtoint(cmb_Compareseq.Text) then aBasicRow := i;
+    if aBasic <> '' then aBasic := aBasic + ',';
+    aBasic := aBasic + sg_LottoList.Cells[aNo,i];
+    nDiff := nDiff - 1;
+    if nDiff < 1 then Break;
+  end;
+end;
+
+procedure TfmLottoWinList5.CheckDiffNo(aNo, aRow: integer; aBasic: string);
+var
+  i : integer;
+  nDiff : integer;
+  stCompareNo : string;
+begin
+  stCompareNo := '';
+  nDiff := strtoint(cmb_Compareseq.Text);
+  nDiff := aRow - nDiff + 1;
+  if nDiff < 1 then Exit;
+  for i := aRow downto nDiff do
+  begin
+    if stCompareNo <> '' then stCompareNo := stCompareNo + ',';
+    stCompareNo := stCompareNo + sg_LottoList.Cells[aNo,i];
+  end;
+
+  if aBasic <> stCompareNo then Exit;
+  for i := aRow downto nDiff do
+  begin
+    sg_LottoList.Colors[aNo,i] := clYellow;
+  end;
+
+end;
+
+initialization
+  RegisterClass(TfmLottoWinList5);
+Finalization
+  UnRegisterClass(TfmLottoWinList5);
+
+end.

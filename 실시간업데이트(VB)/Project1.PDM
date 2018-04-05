@@ -1,0 +1,100 @@
+[Root]
+Most Recent Package=KTCashStart
+
+
+[Package|KTCashStart|Root]
+SubWizProgID=PDWizard.SetupPkgSubWiz
+BuildFolder=D:\현금영수증\현금영수증 POS 프로그램\NEW\Package
+
+[Package|KTCashStart|Configure DAO ISAMs]
+Applicable=No
+
+[Package|KTCashStart|Configure DAO ODBC]
+JetWorkspace=
+ODBCDirect=
+
+[Package|KTCashStart|Files Found]
+
+[Package|KTCashStart|Files Released]
+
+[Package|KTCashStart|Missing Dependency Information]
+C:\WINDOWS\system32\BHButton.ocx=
+C:\WINDOWS\system32\wininet.dll=
+
+[Package|KTCashStart|Out-of-Date Dependency Information]
+
+[Package|KTCashStart|Files Added]
+
+[Package|KTCashStart|Files Removed]
+
+[Package|KTCashStart|Files In Project]
+D:\현금영수증\현금영수증 POS 프로그램\NEW\KTCashStart.exe=Yes
+C:\WINDOWS\system32\msvbvm60.dll=Yes
+C:\WINDOWS\system32\oleaut32.dll=Yes
+C:\WINDOWS\system32\olepro32.dll=Yes
+C:\WINDOWS\system32\asycfilt.dll=Yes
+C:\WINDOWS\system32\stdole2.tlb=Yes
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\Redist\COMCAT.DLL=Yes
+C:\WINDOWS\system32\VB6KO.DLL=Yes
+C:\WINDOWS\system32\wininet.dll=Yes
+C:\WINDOWS\system32\BHButton.ocx=Yes
+C:\WINDOWS\system32\MSINET.OCX=Yes
+C:\WINDOWS\system32\INETKO.DLL=Yes
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP.EXE=Yes
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP1.EXE=Yes
+C:\WINDOWS\system32\VB6STKIT.DLL=Yes
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\ST6UNST.EXE=Yes
+
+[Package|KTCashStart|Configure Registry Files]
+Applicable=No
+
+[Package|KTCashStart|Configure Remote Servers]
+Applicable=No
+
+[Package|KTCashStart|Install Locations]
+D:\현금영수증\현금영수증 POS 프로그램\NEW\KTCashStart.exe=$(AppPath)
+C:\WINDOWS\system32\msvbvm60.dll=$(WinSysPathSysFile)
+C:\WINDOWS\system32\oleaut32.dll=$(WinSysPathSysFile)
+C:\WINDOWS\system32\olepro32.dll=$(WinSysPathSysFile)
+C:\WINDOWS\system32\asycfilt.dll=$(WinSysPathSysFile)
+C:\WINDOWS\system32\stdole2.tlb=$(WinSysPathSysFile)
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\Redist\COMCAT.DLL=$(WinSysPathSysFile)
+C:\WINDOWS\system32\VB6KO.DLL=$(WinSysPath)
+C:\WINDOWS\system32\wininet.dll=$(WinSysPath)
+C:\WINDOWS\system32\BHButton.ocx=$(WinSysPath)
+C:\WINDOWS\system32\MSINET.OCX=$(WinSysPath)
+C:\WINDOWS\system32\INETKO.DLL=$(WinSysPath)
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP.EXE=$(AppPath)
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP1.EXE=$(WinPath)
+C:\WINDOWS\system32\VB6STKIT.DLL=$(WinSysPathSysFile)
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\ST6UNST.EXE=$(WinPath)
+
+[Package|KTCashStart|Configure Shared Files]
+Applicable=Yes
+D:\현금영수증\현금영수증 POS 프로그램\NEW\KTCashStart.exe=No
+
+[Package|KTCashStart|Distribution]
+Type=single
+Size=
+Title=KT현금영수증업데이트
+
+[Package|KTCashStart|IconGroups]
+Group0=KT현금영수증업데이트
+PrivateGroup0=True
+Parent0=$(Programs)
+
+[Package|KTCashStart|KT현금영수증업데이트]
+Icon1=KTCashStart.exe
+Title1=KT현금영수증업데이트
+StartIn1=$(AppPath)
+Key1=Icon1
+
+[Package|KTCashStart|Package]
+PackageFolder=D:\현금영수증\현금영수증 POS 프로그램\NEW\Package
+ProjectFolder=D:\현금영수증\현금영수증 POS 프로그램\NEW
+ServerSideCab=
+File1=D:\현금영수증\현금영수증 POS 프로그램\NEW\Package\setup.exe
+File2=D:\현금영수증\현금영수증 POS 프로그램\NEW\Package\Setup.Lst
+File3=D:\현금영수증\현금영수증 POS 프로그램\NEW\Package\KTCashStart.CAB
+Handler1=PDWizard.FolderDplySubWiz
+Handler2=PDWizard.WebPostDplySubWiz
